@@ -149,7 +149,7 @@ function handleError(err) {
 
 module.exports = function(service, options) {
 
-	let joiOpts  = _.defaults(options.joi, {abortEarly:false, convert:true, language})
+	let joiOpts  = _.defaults(options.joi || {}, {abortEarly:false, convert:true, language}),
         handler  = options.handler,
         handlers = []
 
@@ -158,8 +158,6 @@ module.exports = function(service, options) {
     else
         handlers.push(handleError)
 
-
-
 	return function*(next, options) {
 
         // Skip middleware if request does not need validation
@@ -167,18 +165,20 @@ module.exports = function(service, options) {
             return yield next
 
         // Validate the request input
-		let joiSchema = options.request.isJoi? options.request : Joi.object().keys(options.request).options({stripUnknown:true}),
-            joiOpts   = _.defaults(options.joi || {}, joiOpts),
-            joiResult = Joi.validate(this.req, joiSchema, joiOpts)
+		let schema = options.request.isJoi? options.request : Joi.object().keys(options.request).options({stripUnknown:true}),
+            opts   = _.defaults(options.joi || {}, joiOpts),
+            result = Joi.validate(this.req, schema, joiOpts)
 
         // If everything is valid just set this.req and continue
-        if (!joiResult.error) {
-            this.req = joiResult.value
+        if (!result.error) {
+            this.req = result.value
             return yield next
         }
 
+        console.log(result.error)
+
         // If there are errors convert to an Error
-        let err = convertJoiErrorsToError(this.req, joiResult.error)
+        let err = convertJoiErrorsToError(this.req, result.error)
 
         // The handler list is handlers + action
         let handlerList   = handlers,
