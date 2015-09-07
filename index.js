@@ -149,24 +149,26 @@ function handleError(err) {
 
 module.exports = function(service, options) {
 
-	let gOptions = _.defaultsDeep(options || {}, {abortEarly:false, convert:true, language}),
+	let joiOpts  = _.defaults(options.joi, {abortEarly:false, convert:true, language})
+        handler  = options.handler,
         handlers = []
 
-    if (gOptions.handler && typeof gOptions.handler === 'function')
-        handlers.push(gOptions.handler)
+    if (handler && typeof handler === 'function')
+        handlers.push(handler)
     else
         handlers.push(handleError)
 
 
+
 	return function*(next, options) {
 
-        // Skip middleware if request is not validated
+        // Skip middleware if request does not need validation
 		if (!options.request)
             return yield next
 
         // Validate the request input
 		let joiSchema = options.request.isJoi? options.request : Joi.object().keys(options.request).options({stripUnknown:true}),
-            joiOpts   = _.omit(_.defaultsDeep(gOptions, options),'request','action','handler'),
+            joiOpts   = _.defaults(options.joi || {}, joiOpts),
             joiResult = Joi.validate(this.req, joiSchema, joiOpts)
 
         // If everything is valid just set this.req and continue
