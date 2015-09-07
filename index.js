@@ -175,8 +175,6 @@ module.exports = function(service, options) {
             return yield next
         }
 
-        console.log(result.error)
-
         // If there are errors convert to an Error
         let err = convertJoiErrorsToError(this.req, result.error)
 
