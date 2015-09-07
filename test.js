@@ -5,7 +5,8 @@ var chai     = require('chai'),
 	validate = require('.'),
 	mserv    = require('mserv'),
 	co       = require('co'),
-	Joi      = require('joi')
+	Joi      = require('joi'),
+	_        = require('lodash')
 
 // ----------------------------------------------------------------------------
 // Helper
@@ -42,7 +43,8 @@ describe('mserv-validate', function(){
 				y: Joi.number().required()
 			},
 			handler: function*(err) {
-				array.push(err)
+				array.push({name:err.name, message:err.message, errors:err.errors})
+				throw err
 			}
 		},
 		handler: function*(){
@@ -50,20 +52,35 @@ describe('mserv-validate', function(){
 		}
 	})
 
+	beforeEach(function(done){
+		array = []
+		done()
+	})
+
+
 	it('should validate the request and return ok',wrappedTest(function*(){
 		let sum = yield service.invoke('add',{x:3, y:4})
 		sum.should.equal(7)
 	}))
 
-	it('should return validation errors and invoke the action level handler', wrappedTest(function*(){
-		let sum = yield service.invoke('add',{x:'a',y:'b'})
-		array.should.not.be.empty
-		sum.should.eql({
-			status:'validationErrors',
-			errors:[
-				{key:'x', value:'a', error:'notNumber'},
-				{key:'y', value:'b', error:'notNumber'}
-			]
-		})
+	it('should throw a validationErrors and invoke the action level handler', wrappedTest(function*(){
+		try {
+			yield service.invoke('add',{x:'a',y:'b'})
+			throw new Error('Invoke did not throw')
+		}
+		catch(err) {
+			if (err.message === 'Invoke did not throw')
+				throw err
+
+			err = _.pick(err, 'name','message','errors')
+			err.should.eql({
+				name:'Error', 
+				message:'validationErrors', 
+				errors:[
+					{key:'x', value:'a', error:'notNumber'},
+					{key:'y', value:'b', error:'notNumber'}
+				]
+			})
+		}
 	}))
 })

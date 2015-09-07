@@ -122,52 +122,113 @@ var language = {
 }
 
 
-function* handleError(error) {
+function convertJoiErrorsToError(req, joiErr) {
 
-    // Convect Joi errors to our {key, value, error} structure and return early
-    let self   = this,
-        errors = error.details.map(function(details){
+    let err = new Error('validationErrors')
+
+    err.errors = joiErr.details.map(function(details){
         
         let context = details.context,
             key     = details.path,
-            value   = context.value || self.req[key],
+            value   = context.value || req[key],
             matches = details.message.match(/\w+$/),
             error   = matches? matches[0] : 'unknownError'
 
         return {key, value, error}
     })
 
-    // Set the response and DON'T yield next
-    this.res = {status:'validationErrors', errors}
+    return err
+}
+
+function handleError(err) {
+    // Default handler just throws the error
+    throw err
 }
 
 
 
 module.exports = function(service, options) {
 
-	let globalOptions = _.defaultsDeep(options || {}, {abortEarly:false, convert:true, language})
-    let handler = globalOptions.handler || handleError
-    delete globalOptions.handler
+	let gOptions = _.defaultsDeep(options || {}, {abortEarly:false, convert:true, language}),
+        handlers = []
+
+    if (gOptions.handler && typeof gOptions.handler === 'function')
+        handlers.push(gOptions.handler)
+    else
+        handlers.push(handleError)
+
 
 	return function*(next, options) {
 
-		if (options.request) {
+        // Skip middleware if request is not validated
+		if (!options.request)
+            return yield next
 
-			let joiSchema = options.request.isJoi? options.request : Joi.object().keys(options.request).options({stripUnknown:true}),
-                joiOpts   = _.omit(_.defaultsDeep(globalOptions, options),'request','action','handler'),
-                joiValue  = this.req
+        // Validate the request input
+		let joiSchema = options.request.isJoi? options.request : Joi.object().keys(options.request).options({stripUnknown:true}),
+            joiOpts   = _.omit(_.defaultsDeep(gOptions, options),'request','action','handler'),
+            joiResult = Joi.validate(this.req, joiSchema, joiOpts)
 
-            let result = Joi.validate(joiValue, joiSchema, joiOpts)
+        // If everything is valid just set this.req and continue
+        if (!joiResult.error) {
+            this.req = joiResult.value
+            return yield next
+        }
 
-            if (result.error) {
-                if (options.handler && typeof options.handler === 'function')
-                    yield options.handler.call(this, result.error)
-                yield handler.call(this, result.error)
+        // If there are errors convert to an Error
+        let err = convertJoiErrorsToError(this.req, joiResult.error)
+
+        // The handler list is handlers + action
+        let handlerList   = handlers,
+            actionHandler = options.handler
+
+        if (actionHandler && typeof actionHandler === 'function')
+            handlerList = handlerList.concat([actionHandler])
+
+        // List should executed in reverse order
+        handlerList = handlerList.reverse()
+
+
+        // Call the all handlers and bubble the error (or not)
+        for (let i in handlerList) {
+            let handler = handlerList[i],
+                result
+            try {
+                if (isGeneratorFunction(handler))
+                    result = yield* handler.call(this.req, err)
+                else
+                    result = handler.call(this, err)
+
+                if (result !== undefined)
+                    this.res = result
+                
                 return
+            } 
+            catch(newErr) {
+                err = newErr
             }
-            else
-                this.req = result.value
-		}
-		return yield next
+        }
+
+        // If we get here we should re-throw the error so that it gets propagated back
+        // to the caller (and perhaps through mserv-except)
+        throw err
 	}
+}
+
+
+
+/**
+
+  Extracted directly from the co library.
+
+ */
+function isGeneratorFunction(obj) {
+  var constructor = obj.constructor;
+  if (!constructor) return false;
+  if ('GeneratorFunction' === constructor.name || 'GeneratorFunction' === constructor.displayName) return true;
+  return isGenerator(constructor.prototype);
+}
+
+function isGenerator(obj) {
+  return 'function' == typeof obj.next && 'function' == typeof obj.throw;
 }
