@@ -199,7 +199,7 @@ module.exports = function(service, options) {
                 result
             try {
                 if (isGeneratorFunction(handler))
-                    result = yield* handler.call(this.req, err)
+                    result = yield* handler.call(this, err)
                 else
                     result = handler.call(this, err)
 

@@ -1,6 +1,6 @@
 {
   "name": "mserv-validate",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Middleware to perform input validation. It uses [Joi](https://github.com/hapijs/joi) to perform the actual validation.",
   "keywords": [
     "npm",
