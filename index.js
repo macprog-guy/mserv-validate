@@ -134,6 +134,11 @@ function convertJoiErrorsToError(req, joiErr) {
             matches = details.message.match(/\w+$/),
             error   = matches? matches[0] : 'unknownError'
 
+        if (error === 'hasMissingPeer') {
+            error = 'required'
+            key   = context.peers.length == 1? context.peers[0] : 'key'
+        }
+
         return {key, value, error}
     })
 
@@ -187,7 +192,6 @@ module.exports = function(service, options) {
 
         // List should executed in reverse order
         handlerList = handlerList.reverse()
-
 
         // Call the all handlers and bubble the error (or not)
         for (let i in handlerList) {
