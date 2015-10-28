@@ -129,7 +129,7 @@ function convertJoiErrorsToError(req, joiErr) {
     err.errors = joiErr.details.map(function(details){
         
         let context = details.context,
-            key     = details.path,
+            key     = details.path.replace(/^\./,''),
             value   = context.value || req[key],
             matches = details.message.match(/\w+$/),
             error   = matches? matches[0] : 'unknownError'
