@@ -217,7 +217,7 @@ module.exports = function(service, options) {
         // to the caller (and perhaps through mserv-except)
 
         // Set the status to facilitate forwarding to http proxies
-        err.status = 401
+        err.status = 400
 
         throw err
 	}
