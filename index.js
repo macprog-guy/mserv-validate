@@ -215,6 +215,10 @@ module.exports = function(service, options) {
 
         // If we get here we should re-throw the error so that it gets propagated back
         // to the caller (and perhaps through mserv-except)
+
+        // Set the status to facilitate forwarding to http proxies
+        err.status = 401
+
         throw err
 	}
 }
