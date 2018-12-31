@@ -1,3 +1,6 @@
+# NOT MAINTAINED ANYMORE!
+If you would like to own this project I can transfer it to you along with all the other related projects.
+
 # Introduction
 mserv-validate is [mserv](https://github.com/macprog-guy/mserv) middleware to provide input validation and cleansing services to the message pipeline. It uses [Joi](https://github.com/hapijs/joi) to perform the actual validation.
 
